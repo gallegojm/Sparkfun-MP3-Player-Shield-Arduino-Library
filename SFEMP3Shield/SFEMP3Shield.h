@@ -723,7 +723,10 @@ class SFEMP3Shield {
     static void enableRefill();
     static void disableRefill();
     void getBitRateFromMP3File(char*);
+    static bool getMP3reset();
+    static void setMP3reset(bool);
     uint8_t VSLoadUserCode(char*);
+    static uint8_t spiTransfer(uint8_t);
 
     //Create the variables to be used by SdFat Library
 
@@ -747,6 +750,11 @@ class SFEMP3Shield {
 
 /** \brief contains a local value of the VSdsp's master volume Right channels*/
     uint8_t VolR;
+
+#ifndef __AVR__
+/** \brief contains a local value of the VSdsp's state of reset pin*/
+    static bool mp3Reset;
+#endif __AVR__
 };
 
 //------------------------------------------------------------------------------
