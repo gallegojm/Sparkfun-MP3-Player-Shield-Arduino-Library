@@ -156,7 +156,7 @@ Support for Arduino Leonardo is afflicted by having the SPI pins not routing the
   #define MP3_XCS              6 //Control Chip Select Pin (for accessing SPI Control/Status registers)
   #define MP3_XDCS             7 //Data Chip Select / BSYNC Pin
   #define MP3_DREQ             2 //Data Request Pin: Player asks for more data
-  #if defined(__ARM__)
+  #if defined(__arm__)
     #define MP3_DREQINT MP3_DREQ // use pin number for ARM
   #elif defined(__AVR_ATmega32U4__) // swapped between Uno and Leonardo.
     #define MP3_DREQINT          1 //Corresponding INTx for DREQ pin
