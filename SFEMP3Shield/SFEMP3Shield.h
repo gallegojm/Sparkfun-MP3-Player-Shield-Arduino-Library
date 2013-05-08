@@ -705,6 +705,9 @@ class SFEMP3Shield {
     int8_t getVUmeter();
     int8_t setVUmeter(int8_t);
     int16_t getVUlevel();
+    uint16_t getBitRate();
+    uint32_t getCurrentPosition();
+    uint32_t getTrackLength();
 
   private:
     static SdFile track;

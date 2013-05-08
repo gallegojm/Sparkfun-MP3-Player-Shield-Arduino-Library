@@ -1161,6 +1161,44 @@ uint32_t SFEMP3Shield::currentPosition(){
   return(Mp3ReadRegister(SCI_DECODE_TIME) << 10); // multiply by 1024 to convert to milliseconds.
 }
 
+//------------------------------------------------------------------------------
+/*
+  Get current bit rate in kbps
+*/
+
+uint16_t SFEMP3Shield::getBitRate()
+{
+  return Mp3ReadWRAM( para_byteRate ) >> 7;
+}
+
+//------------------------------------------------------------------------------
+/*
+  Get current position in seconds
+	Accurate with files with constant bit rate
+*/
+
+uint32_t SFEMP3Shield::getCurrentPosition()
+{
+  uint16_t byte_rate = Mp3ReadWRAM( para_byteRate );
+    if( byte_rate > 0 )
+		  return track.curPosition() / byte_rate;
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+/*
+  Get track length in seconds
+	Accurate with files with constant bit rate
+*/
+
+uint32_t SFEMP3Shield::getTrackLength()
+{
+  uint16_t byte_rate = Mp3ReadWRAM( para_byteRate );
+    if( byte_rate > 0 )
+		  return track.fileSize() / byte_rate;
+  return 0;
+}
+
 // @}
 // Play_Control_Group
 
@@ -1710,7 +1748,8 @@ void SFEMP3Shield::available() {
 #if defined(USE_MP3_REFILL_MEANS) && USE_MP3_REFILL_MEANS == USE_MP3_SimpleTimer
   timer.run();
 #elif defined(USE_MP3_REFILL_MEANS) && USE_MP3_REFILL_MEANS == USE_MP3_Polled
-  refill();
+  if( playing_state != paused_playback )
+	  refill();
 #endif
 }
 
