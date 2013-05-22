@@ -112,7 +112,11 @@ if (int8_t(sd.vol()->fatType()) == 0) {
 #endif
 
   pinMode(MP3_DREQ, INPUT);
+#ifdef __AVR__
   pinMode(MP3_XCS, OUTPUT);
+#else
+  pinMode(MP3_XCS, INPUT);
+#endif __AVR__
   pinMode(MP3_XDCS, OUTPUT);
   pinMode(MP3_RESET, OUTPUT);
 
@@ -120,8 +124,9 @@ if (int8_t(sd.vol()->fatType()) == 0) {
   SPI.begin( MP3_XCS );
   SPI.setBitOrder( MP3_XCS, MSBFIRST );
   SPI.setDataMode( MP3_XCS, SPI_MODE0 );
-#endif __AVR__
+#else
   cs_high();  //MP3_XCS, Init Control Select to deselected
+#endif __AVR__
   dcs_high(); //MP3_XDCS, Init Data Select to deselected
   setMP3reset(LOW); //Put VS1053 into hardware reset
 
@@ -155,7 +160,9 @@ void SFEMP3Shield::end() {
 
   stopTrack(); // Stop and CLOSE any open tracks.
   disableRefill(); // shut down specific interrupts
+#ifdef __AVR__
   cs_high();  //MP3_XCS, Init Control Select to deselected
+#endif
   dcs_high(); //MP3_XDCS, Init Data Select to deselected
 
   // most importantly...
@@ -224,13 +231,13 @@ uint8_t SFEMP3Shield::vs_init() {
   Serial.print(F("SCI_Mode (0x4800) = 0x"));
   Serial.println(MP3Mode, HEX);
 
-  int MP3Status = Mp3ReadRegister(SCI_Status);
+  int MP3Status = Mp3ReadRegister(SCI_STATUS);
   Serial.print(F("SCI_Status (0x48) = 0x"));
   Serial.println(MP3Status, HEX);
 
-  int MP3Clock = Mp3ReadRegister(SCI_CLOCKF);
+  int MP3Clock0 = Mp3ReadRegister(SCI_CLOCKF);
   Serial.print(F("SCI_ClockF = 0x"));
-  Serial.println(MP3Clock, HEX);
+  Serial.println(MP3Clock0, HEX);
   */
 
   if(MP3Mode != (SM_LINE1 | SM_SDINEW)) return 4;
@@ -380,7 +387,7 @@ uint8_t SFEMP3Shield::enableTestSineWave(uint8_t freq) {
     spiTransfer(0x00);
     spiTransfer(0x00);
     spiTransfer(0x00);
-    spiTransfer(0x00);
+    spiLastTransfer(0x00);
     while(!digitalRead(MP3_DREQ)) ; //Wait for DREQ to go high indicating command is complete
     dcs_high(); //Deselect Control
   }
@@ -429,7 +436,7 @@ uint8_t SFEMP3Shield::disableTestSineWave() {
   spiTransfer(0x00);
   spiTransfer(0x00);
   spiTransfer(0x00);
-  spiTransfer(0x00);
+  spiLastTransfer(0x00);
   while(!digitalRead(MP3_DREQ)) ; //Wait for DREQ to go high indicating command is complete
 
   dcs_high(); //Deselect Control
@@ -482,14 +489,14 @@ uint16_t SFEMP3Shield::memoryTest() {
     //Select control
     dcs_low();
     //SCI consists of instruction byte, address byte, and 16-bit data word.
-    spiTransfer(0x4D);
-    spiTransfer(0xEA);
-    spiTransfer(0x6D);
-    spiTransfer(0x54);
-    spiTransfer(0x00);
-    spiTransfer(0x00);
-    spiTransfer(0x00);
-    spiTransfer(0x00);
+    spiLastTransfer(0x4D);
+    spiLastTransfer(0xEA);
+    spiLastTransfer(0x6D);
+    spiLastTransfer(0x54);
+    spiLastTransfer(0x00);
+    spiLastTransfer(0x00);
+    spiLastTransfer(0x00);
+    spiLastTransfer(0x00);
     while(!digitalRead(MP3_DREQ)) ; //Wait for DREQ to go high indicating command is complete
     dcs_high(); //Deselect Control
 //  }
@@ -840,7 +847,7 @@ uint8_t SFEMP3Shield::playMP3(char* fileName, uint32_t timecode) {
   //Open the file in read mode.
   if(!track.open(fileName, O_READ)) return 2;
 
-  // find length of arrary at pointer
+  // find length of array at pointer
   int fileNamefileName_length = 0;
   while(*(fileName + fileNamefileName_length))
     fileNamefileName_length++;
@@ -912,6 +919,8 @@ uint8_t SFEMP3Shield::isPlaying(){
   else if(getState() == playback)
     result = 1;
   else if(getState() == paused_playback)
+    result = 1;
+  else if(getState() == stream_playback)
     result = 1;
   else
     result = 0;
@@ -1533,15 +1542,13 @@ void SFEMP3Shield::setBitRate(uint16_t bitr){
  * the current VX10xx. Then select the VS10xx's Control Chip Select as per
  * defined by MP3_XCS.
  */
-void SFEMP3Shield::cs_low() {
 #ifdef __AVR__
+void SFEMP3Shield::cs_low() {
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(spiRate); //Set SPI bus speed to 1MHz (16MHz / 16 = 1MHz)
-#else __AVR__
-  SPI.setDataMode( MP3_XCS, SPI_MODE0 );
-#endif __AVR__
   digitalWrite(MP3_XCS, LOW);
 }
+#endif __AVR__
 
 //------------------------------------------------------------------------------
 /**
@@ -1550,9 +1557,11 @@ void SFEMP3Shield::cs_low() {
  * Primative function to Deselect the VS10xx's Control Chip Select as per
  * defined by MP3_XCS.
  */
+#ifdef __AVR__
 void SFEMP3Shield::cs_high() {
   digitalWrite(MP3_XCS, HIGH);
 }
+#endif __AVR__
 
 //------------------------------------------------------------------------------
 /**
@@ -1566,8 +1575,6 @@ void SFEMP3Shield::dcs_low() {
 #ifdef __AVR__
   SPI.setDataMode(SPI_MODE0);
   SPI.setClockDivider(spiRate); //Set SPI bus speed to 1MHz (16MHz / 16 = 1MHz)
-#else __AVR__
-  SPI.setDataMode( MP3_XCS, SPI_MODE0 );
 #endif __AVR__
   digitalWrite(MP3_XDCS, LOW);
 }
@@ -1622,15 +1629,19 @@ void SFEMP3Shield::Mp3WriteRegister(uint8_t addressbyte, uint8_t highbyte, uint8
   //Wait for DREQ to go high indicating IC is available
   while(!digitalRead(MP3_DREQ)) ;
   //Select control
+#ifdef __AVR__
   cs_low();
+#endif __AVR__
 
   //SCI consists of instruction byte, address byte, and 16-bit data word.
   spiTransfer(0x02); //Write instruction
   spiTransfer(addressbyte);
   spiTransfer(highbyte);
-  spiTransfer(lowbyte);
+  spiLastTransfer(lowbyte);
   while(!digitalRead(MP3_DREQ)) ; //Wait for DREQ to go high indicating command is complete
+#ifdef __AVR__
   cs_high(); //Deselect Control
+#endif __AVR__
 
   //resume interrupt if playing.
   if(playing_state == playback) {
@@ -1665,7 +1676,9 @@ uint16_t SFEMP3Shield::Mp3ReadRegister (uint8_t addressbyte){
     disableRefill();
 
   while(!digitalRead(MP3_DREQ)) ; //Wait for DREQ to go high indicating IC is available
+#ifdef __AVR__
   cs_low(); //Select control
+#endif __AVR__
 
   //SCI consists of instruction byte, address byte, and 16-bit data word.
   spiTransfer(0x03);  //Read instruction
@@ -1673,10 +1686,12 @@ uint16_t SFEMP3Shield::Mp3ReadRegister (uint8_t addressbyte){
 
   resultvalue.byte[1] = spiTransfer(0xFF); //Read the first byte
   while(!digitalRead(MP3_DREQ)) ; //Wait for DREQ to go high indicating command is complete
-  resultvalue.byte[0] = spiTransfer(0xFF); //Read the second byte
+  resultvalue.byte[0] = spiLastTransfer(0xFF); //Read the second byte
   while(!digitalRead(MP3_DREQ)) ; //Wait for DREQ to go high indicating command is complete
 
+#ifdef __AVR__
   cs_high(); //Deselect Control
+#endif __AVR__
 
   //resume interrupt if playing.
   if(playing_state == playback) {
@@ -1787,12 +1802,11 @@ void SFEMP3Shield::refill() {
       break;
     }
 
-
     //Once DREQ is released (high) we now feed 32 bytes of data to the VS1053 from our SD read buffer
     dcs_low(); //Select Data
     for(uint8_t y = 0 ; y < sizeof(mp3DataBuffer) ; y++) {
       //while(!digitalRead(MP3_DREQ)); // wait until DREQ is or goes high // turns out it is not needed.
-      spiTransfer(mp3DataBuffer[y]); // Send SPI byte
+      spiLastTransfer(mp3DataBuffer[y]); // Send SPI byte
     }
 
     dcs_high(); //Deselect Data
@@ -1860,7 +1874,7 @@ void SFEMP3Shield::flush_cancel(flush_m mode) {
     dcs_low(); //Select Data
     for(int y = 0 ; y < 2052 ; y++) {
       while(!digitalRead(MP3_DREQ)); // wait until DREQ is or goes high
-      spiTransfer(endFillByte); // Send SPI byte
+      spiLastTransfer(endFillByte); // Send SPI byte
     }
     dcs_high(); //Deselect Data
   }
@@ -1872,7 +1886,7 @@ void SFEMP3Shield::flush_cancel(flush_m mode) {
     dcs_low(); //Select Data
     for(int y = 0 ; y < 32 ; y++) {
       while(!digitalRead(MP3_DREQ)); // wait until DREQ is or goes high
-      spiTransfer(endFillByte); // Send SPI byte
+      spiLastTransfer(endFillByte); // Send SPI byte
     }
     dcs_high(); //Deselect Data
 
@@ -1883,7 +1897,7 @@ void SFEMP3Shield::flush_cancel(flush_m mode) {
         dcs_low(); //Select Data
         for(int y = 0 ; y < 2052 ; y++) {
           while(!digitalRead(MP3_DREQ)); // wait until DREQ is or goes high
-          spiTransfer(endFillByte); // Send SPI byte
+          spiLastTransfer(endFillByte); // Send SPI byte
         }
         dcs_high(); //Deselect Data
       }
@@ -1983,6 +1997,41 @@ void SFEMP3Shield::ADMixerVol(int8_t ADM_volume){
 
 
 //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Group for playing from stream
+// Actually work when USE_MP3_REFILL_MEANS defined as polled
+
+#if defined(USE_MP3_REFILL_MEANS) && USE_MP3_REFILL_MEANS == USE_MP3_Polled
+
+void SFEMP3Shield::playStream()
+{
+  bitrate = 0;
+  playing_state = stream_playback;
+  Mp3WriteRegister( SCI_DECODE_TIME, 0 ); // Reset the Decode and bitrate from previous play back.
+	delay( 1000 );
+}
+
+void SFEMP3Shield::stopStream()
+{
+  playing_state = ready;
+  flush_cancel( pre );
+}
+
+uint32_t SFEMP3Shield::fillFromStream( uint8_t * p_buf )
+{
+  while( digitalRead( MP3_DREQ ))
+  {
+    dcs_low();                          // Select Data
+    for( uint8_t i = 0; i < 32 ; i ++ ) // Send 32 bytes
+      spiLastTransfer( p_buf[ i ] );
+    dcs_high();                         // Deselect Data
+    return 32;
+  }
+  return 0;
+}
+#endif
+
+
+//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // Global Function
 
 /**
@@ -2030,6 +2079,7 @@ bool isFnMusic(char* filename) {
   }
   return result;
 }
+
 bool SFEMP3Shield::getMP3reset() {
 #ifdef __AVR__
   return digitalRead(MP3_RESET);
@@ -2037,16 +2087,27 @@ bool SFEMP3Shield::getMP3reset() {
   return mp3Reset;
 #endif __AVR__
 }
+
 void SFEMP3Shield::setMP3reset(bool value) {
   digitalWrite(MP3_RESET, value);
 #ifndef __AVR__
   mp3Reset = value; // it appears the DUE can not read the pin back.
 #endif __AVR__
 }
+
 uint8_t SFEMP3Shield::spiTransfer(uint8_t value) {
 #ifdef __AVR__
   return SPI.transfer( value ); // for AVR
 #else __AVR__
-  return SPI.transfer( MP3_XCS, value ); // for ARM
+  return SPI.transfer( MP3_XCS, value, SPI_CONTINUE ); // for ARM
+#endif __AVR__
+}
+
+uint8_t SFEMP3Shield::spiLastTransfer( uint8_t value )
+{
+#ifdef __AVR__
+  return SPI.transfer( value ); // for AVR
+#else __AVR__
+  return SPI.transfer( MP3_XCS, value, SPI_LAST ); // for ARM
 #endif __AVR__
 }

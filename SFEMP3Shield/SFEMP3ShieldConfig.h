@@ -153,7 +153,11 @@ Support for Arduino Leonardo is afflicted by having the SPI pins not routing the
   #define MP3_RESET           A0 //Reset is active low
   #define SD_SEL              10 //select pin for SD card
 #else // otherwise use pinout of typical Sparkfun MP3 Player Shield.
-  #define MP3_XCS              6 //Control Chip Select Pin (for accessing SPI Control/Status registers)
+  #if defined(__arm__)
+    #define MP3_XCS            4 //Control Chip Select Pin (for accessing SPI Control/Status registers)
+  #else
+    #define MP3_XCS            6 //Control Chip Select Pin (for accessing SPI Control/Status registers)
+  #endif
   #define MP3_XDCS             7 //Data Chip Select / BSYNC Pin
   #define MP3_DREQ             2 //Data Request Pin: Player asks for more data
   #if defined(__arm__)

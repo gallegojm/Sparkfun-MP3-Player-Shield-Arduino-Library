@@ -40,6 +40,7 @@ enum state_m {
   paused_playback,
   testing_memory,
   testing_sinewave,
+  stream_playback
   }; //enum state_m
 
 /** \brief How to flush the VSdsp's buffer
@@ -708,6 +709,11 @@ class SFEMP3Shield {
     uint16_t getBitRate();
     uint32_t getCurrentPosition();
     uint32_t getTrackLength();
+    #if defined(USE_MP3_REFILL_MEANS) && USE_MP3_REFILL_MEANS == USE_MP3_Polled
+      void playStream();
+      void stopStream();
+      uint32_t fillFromStream( uint8_t * p_buf );
+    #endif
 
   private:
     static SdFile track;
@@ -730,6 +736,7 @@ class SFEMP3Shield {
     static void setMP3reset(bool);
     uint8_t VSLoadUserCode(char*);
     static uint8_t spiTransfer(uint8_t);
+    static uint8_t spiLastTransfer(uint8_t);
 
     //Create the variables to be used by SdFat Library
 
