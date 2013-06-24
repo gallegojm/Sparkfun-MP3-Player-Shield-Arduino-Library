@@ -1,11 +1,13 @@
 /*
   file WebRadio.ino
  
-  author Jean-Michel Gallego - 21/05/2013
+  author Jean-Michel Gallego - 23/06/2013
   
   This sketch allows to listen to web radios.
   It needs an Arduino DUe, an Ethernet shield and a Sparkfun
     MP3 shield
+  Ethernet shield should be replaced by a WIZ820io to increase bitrate and
+    listen radio with a rate higher than 64 kb/s
     
   Pin 4 of Ethernet shield is not connected to pin 4 of Arduino Due
     but to pin 3V3 as SD card from that shield is not used
@@ -26,6 +28,11 @@
     #define USE_ARDUINO_SPI_LIBRARY 0
    to
     #define USE_ARDUINO_SPI_LIBRARY 1
+
+  In order to use WIZ820io with w5200 chip you must modify Ethernet library.
+  See http://forum.arduino.cc/index.php?topic=139147.0
+  Download W5200 library by Jinbuhm Kim at
+    https://github.com/jbkim/W5200-Arduino-Ethernet-library
 
   The sketch assume pre-compiled patches for VS1053b chip are loaded in the
     main directory of the SD card
@@ -64,7 +71,7 @@ EthernetClient client;
 // size of buffer
 #define MP3BUF_SIZE 65536 // must be a multiple of 32
 // max numbers of bytes read from internet stream
-#define CHUNK_SIZE 1024
+#define CHUNK_SIZE 128 // 1024
 // buffer where stream readed from internet is stored before beind sent to MP3 chip
 uint8_t mp3Buf[ MP3BUF_SIZE ];
 
@@ -75,12 +82,14 @@ Radio listRadio[] =
   { "Solo piano - SKY FM (40 kb/s)", "pub1.sky.fm", "/sky_solopiano_aacplus", 80 },
   { "Absolutly Smooth Jazz (40 kb/s)", "pub1.sky.fm", "/sky_smoothjazz_aacplus", 80 },
   { "Radio Samba dos Gemeos (46 kb/s)", "streaming03.maxcast.com.br", "/live", 8236 },
-  { "A Radio Rock (64 kb/s)", "174-120-158-115.webnow.net.br", "/89rock64k.aac", 80 },
+//  { "A Radio Rock (64 kb/s)", "174-120-158-115.webnow.net.br", "/89rock64k.aac", 80 },
   { "RFI Monde (64 kb/s)", "95.81.147.3", "/rfimonde/all/rfimonde-64k.mp3", 80 },
   { "WRCJ 90.9 FM (64 kb/s)", "ice2.securenetsystems.net", "/WCJR", 80 },
   { "Latin Jazz Radio (96 kb/s)", "96.56.32.46", "/", 8002 },
-  { "Giant of Jazz (128 kb/s)", "stardust.wavestreamer.com", "/GiantsofJazzRadio", 1889 },
+//  { "Giant of Jazz (128 kb/s)", "stardust.wavestreamer.com", "/GiantsofJazzRadio", 1889 },
   { "Jazz Radio (128 kb/s)", "84.16.67.144", "/jazz-wr01-128.mp3", 80 },
+  { "D2R Jazz (160 kb/s)", "81.7.160.152", "/d2r.mp3", 8000 },
+  { "4U Classic Rock (320 kb/s)", "str4uice.streamakaci.com", "/4uclassicrock.mp3", 80 }
 };
 
 /*******************************************************************************
@@ -354,6 +363,38 @@ boolean connectServer( Radio radio )
     client << "Range: bytes=0-\r\n";
     client << "Accept: audio/" << "*; q=0.2, audio/basic\r\n";
     client << "Connection: close\r\n\r\n";
+  }
+  
+  uint16_t nc = 0;
+  uint32_t millis0 = millis();
+  // Wait for an answer during 2 secondes
+  while( ok )
+  {
+    if( (uint32_t) ( millis() - millis0 ) > 2000 )
+    {
+      ok = false;
+      break;
+    }
+    if( client.available())
+    {
+      char c = client.read();
+      Serial << c ;
+      if( c != '\r' )
+        if( c != '\n' )
+          nc ++;
+        else
+        {
+          // empty line? This the end of the server reponse
+          if( nc == 0 )
+            break;
+          nc = 0;
+        }
+    }
+  }
+  if( ! ok )
+  {
+    client.flush();
+    client.stop();
   }
   return ok;
 }

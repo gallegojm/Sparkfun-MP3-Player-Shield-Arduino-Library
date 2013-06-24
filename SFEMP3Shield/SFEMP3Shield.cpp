@@ -909,6 +909,7 @@ void SFEMP3Shield::stopTrack(){
  * \return
  * - 0 indicates \b NO file is currently being streamed to the VSdsp.
  * - 1 indicates that a file is currently being streamed to the VSdsp.
+ * - 2 indicates that external buffer is currently being streamed to the VSdsp.
  * - 3 indicates that the VSdsp is in reset.
  */
 uint8_t SFEMP3Shield::isPlaying(){
@@ -920,8 +921,8 @@ uint8_t SFEMP3Shield::isPlaying(){
     result = 1;
   else if(getState() == paused_playback)
     result = 1;
-  else if(getState() == stream_playback)
-    result = 1;
+  else if(getState() == streaming)
+    result = 2;
   else
     result = 0;
 
@@ -2005,7 +2006,7 @@ void SFEMP3Shield::ADMixerVol(int8_t ADM_volume){
 void SFEMP3Shield::playStream()
 {
   bitrate = 0;
-  playing_state = stream_playback;
+  playing_state = streaming;
   Mp3WriteRegister( SCI_DECODE_TIME, 0 ); // Reset the Decode and bitrate from previous play back.
 	delay( 1000 );
 }

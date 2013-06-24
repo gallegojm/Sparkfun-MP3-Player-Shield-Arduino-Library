@@ -40,7 +40,7 @@ enum state_m {
   paused_playback,
   testing_memory,
   testing_sinewave,
-  stream_playback
+  streaming
   }; //enum state_m
 
 /** \brief How to flush the VSdsp's buffer
